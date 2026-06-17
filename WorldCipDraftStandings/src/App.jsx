@@ -169,6 +169,7 @@ const App = () => {
   }, []);
 
   const [scores, setScores] = useState({});
+  const teamScores = {};
 
   useEffect(() => {
     if (!standings?.groups || !bracket?.stages) {
@@ -180,34 +181,54 @@ const App = () => {
 
     for (const person of people) {
       let personTotal = 0;
+      const teamBreakdown = [];
 
       for (const team of TEAMS_MAP[person]) {
-        personTotal += getPointsByTeam(team);
+        const pts = getPointsByTeam(team, standings, bracket);
+        personTotal += pts;
+
+        teamBreakdown.push({ name: team, points: pts });
       }
 
-      calculatedScores[person] = personTotal;
+      teamBreakdown.sort((a, b) => b.points - a.points);
+
+      calculatedScores[person] = {
+        total: personTotal,
+        teams: teamBreakdown,
+      };
     }
 
     setScores(calculatedScores);
   }, [standings, bracket]);
 
-  const sortedPeople = [...people].sort((a, b) => {
-    const scoreA = scores[a] || 0;
-    const scoreB = scores[b] || 0;
+  const scoreValues = Object.values(scores).map((s) => s.total);
 
+  const maxScore = scoreValues.length > 0 ? Math.max(...scoreValues) : 0;
+  const minScore = scoreValues.length > 0 ? Math.min(...scoreValues) : 0;
+
+  const sortedPeople = [...people].sort((a, b) => {
+    const scoreA = scores[a]?.total || 0;
+    const scoreB = scores[b]?.total || 0;
     return scoreB - scoreA;
   });
 
   return (
-    <>
-      <div className="mt-16 max-w-2xl mx-auto px-4">
-        {sortedPeople.map((person) => {
-          const personScore = scores[person] || 0;
+    <div className="mt-16 max-w-2xl mx-auto px-4">
+      {sortedPeople.map((person) => {
+        const personData = scores[person] || { total: 0, teams: [] };
 
-          return <Person key={person} name={person} points={personScore} />;
-        })}
-      </div>
-    </>
+        return (
+          <Person
+            key={person}
+            name={person}
+            points={personData.total}
+            teams={personData.teams}
+            isWinner={personData.total === maxScore && maxScore > 0}
+            isLoser={personData.total === minScore && maxScore > 0}
+          />
+        );
+      })}
+    </div>
   );
 };
 export default App;
